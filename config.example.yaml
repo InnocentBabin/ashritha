@@ -1,0 +1,72 @@
+# Ashritha VAPT - Example Configuration
+# Copy this to config.yaml and edit with your settings
+
+ollama:
+  model: llama3.1:8b
+  host: "http://localhost:11434"
+  enabled: true
+  timeout_seconds: 60
+  max_tokens: 2000
+  temperature: 0.3
+
+session:
+  enabled: false
+  ttl_seconds: 3600
+  refresh_threshold: 300
+  redis_host: localhost
+  redis_port: 6379
+  redis_db: 0
+
+recon:
+  max_depth: 5
+  max_pages: 1000
+  timeout_seconds: 30
+  concurrent_requests: 10
+  user_agent: "Ashritha-VAPT-Bot/2.0"
+  ignore_extensions:
+    - .jpg
+    - .jpeg
+    - .png
+    - .gif
+    - .mp4
+    - .mp3
+    - .pdf
+    - .doc
+    - .docx
+    - .ico
+    - .svg
+  priority_endpoints:
+    - /api/
+    - /rest/
+    - /graphql
+    - /admin
+    - /dashboard
+    - /swagger
+    - /docs
+
+exploitation:
+  enabled: true
+  max_payloads_per_vuln: 20
+  timeout_seconds: 15
+  safe_mode: true
+  detect_errors: true
+
+tech_fingerprint:
+  enabled: true
+  run_wappalyzer: true
+  run_whatweb: true
+  wappalyzer_timeout: 60
+  whatweb_timeout: 60
+  whatweb_aggression: 3
+
+cve_matching:
+  enabled: true
+  use_nvd: false
+  max_cves_per_tech: 10
+
+storage:
+  endpoints_file: endpoints/all_endpoints.json
+  categorized_file: endpoints/categorized_endpoints.json
+  js_analysis_file: js_analysis/analyzed_js.json
+  forms_file: endpoints/forms.json
+  report_file: reports/recon_report.json
