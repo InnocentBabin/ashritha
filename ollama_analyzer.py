@@ -24,7 +24,7 @@ class OllamaVulnerabilityAnalyzer:
         Args:
             model_name: Ollama model name
             config: Configuration dictionary
-            host: Remote Ollama host (e.g., "http://127.0.0.1:11434")
+            host: Remote Ollama host (e.g., "http://<yourhost>:11434")
         """
         self.model_name = model_name
         self.config = config or {}
@@ -155,47 +155,87 @@ class OllamaVulnerabilityAnalyzer:
         return {'vulnerabilities': vulnerabilities[:10], 'risk_score': min(risk_score, 100)}
 
     def _analyze_with_ollama(self, url: str, method: str, params: List[str], context: Dict = None) -> Dict:
-        """Use Ollama AI to analyze vulnerabilities (via remote client)"""
         try:
-            prompt = self._build_ollama_prompt(url, method, params, context)
-            
-            # Use the CLIENT, not the module
+            # Fetch a live sample from the target so the LLM sees real output
+            response_sample = ""
+            server_headers = ""
+            try:
+                r = self.client_probe(url, method)
+                if r:
+                    response_sample = r.get("text", "")[:2500]
+                    server_headers = r.get("headers", "")
+            except Exception:
+                pass
+
+            prompt = f"""Analyze this endpoint for vulnerabilities.
+
+    URL:        {url}
+    Method:     {method}
+    Parameters: {', '.join(params) if params else 'none'}
+
+    SERVER RESPONSE HEADERS:
+    {server_headers or 'unavailable'}
+
+    SERVER RESPONSE BODY (first 2500 chars):
+    \"\"\"
+    {response_sample or 'unavailable'}
+    \"\"\"
+
+    Return JSON only with:
+    {{
+    "vulnerabilities": [
+        {{
+        "type": "sql_injection|xss|command_injection|path_traversal|ssti|idor|broken_access_control|authentication",
+        "parameter": "...",
+        "confidence": 0.0-1.0,
+        "risk_level": "Critical|High|Medium|Low",
+        "reasons": ["...", "..."],
+        "attack_vector": "..."
+        }}
+    ],
+    "risk_score": 0-100,
+    "insights": ["..."]
+    }}
+    """
+
             response = self.client.chat(
                 model=self.model_name,
                 messages=[
-                    {
-                        'role': 'system',
-                        'content': """You are a security expert specializing in web application vulnerability analysis. 
-                        Analyze the given endpoint and identify potential vulnerabilities. 
-                        Return ONLY valid JSON in your response."""
-                    },
-                    {
-                        'role': 'user',
-                        'content': prompt
-                    }
-                ]
+                    {"role": "system",
+                    "content": "You are an expert web-app pentester. Reply with valid JSON only."},
+                    {"role": "user", "content": prompt},
+                ],
             )
-            
-            # Access via .message.content (object attribute)
-            response_text = response.message.content.strip()
-            
-            # Try to extract JSON from the response
-            json_match = re.search(r'\{[\s\S]*\}', response_text)
-            if json_match:
-                try:
-                    analysis = json.loads(json_match.group())
-                    parsed = self._parse_ollama_response(analysis)
-                    parsed['raw_response'] = response_text
-                    return parsed
-                except json.JSONDecodeError as e:
-                    logger.warning(f"Failed to parse JSON: {e}")
-                    return self._parse_text_response(response_text)
-            else:
-                return self._parse_text_response(response_text)
-                
+            raw = response.message.content.strip()
+            m = re.search(r'\{[\s\S]*\}', raw)
+            if m:
+                parsed = json.loads(m.group(0))
+                return {
+                    "vulnerabilities": parsed.get("vulnerabilities", []),
+                    "risk_score": parsed.get("risk_score", 0),
+                    "insights": parsed.get("insights", []),
+                    "raw_response": raw,
+                }
+            return {"vulnerabilities": [], "risk_score": 0, "insights": [], "raw_response": raw}
         except Exception as e:
-            logger.error(f"Ollama analysis error: {e}")
-            return {'vulnerabilities': [], 'risk_score': 0, 'insights': [], 'error': str(e)}
+            logger.error(f"Ollama vuln analysis failed: {e}")
+            return {"vulnerabilities": [], "risk_score": 0, "insights": [], "error": str(e)}
+
+
+    def client_probe(self, url: str, method: str) a-> Optional[Dict]:
+        """Send a harmless probe to the target so the LLM sees a real response."""
+        import requests
+        try:
+            s = requests.Session()
+            s.verify = False
+            if method.upper() == "GET":
+                r = s.get(url, timeout=10, allow_redirects=True)
+            else:
+                r = s.post(url, data={"test": "probe"}, timeout=10, allow_redirects=True)
+            headers_str = "\n".join(f"{k}: {v}" for k, v in r.headers.items())
+            return {"text": r.text, "headers": headers_str, "status": r.status_code}
+        except Exception:
+            return None
 
     def _build_ollama_prompt(self, url: str, method: str, params: List[str], context: Dict = None) -> str:
         """Build prompt for Ollama"""
