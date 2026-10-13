@@ -248,8 +248,8 @@ ollama run llama3.1:8b "Say hello in one word"
 ### Step 3: Clone This Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ashritha-vapt.git
-cd ashritha-vapt
+git clone https://github.com/YOUR_USERNAME/ashritha.git
+cd ashritha
 ```
 
 ---
@@ -363,50 +363,50 @@ session:
 ### Basic Scan (Public Target)
 
 ```bash
-python main.py recon https://example.com
+python ashritha.py recon https://example.com
 ```
 
 ### Authenticated Scan
 
 ```bash
-python main.py recon https://example.com -u admin -p password123
+python ashritha.py recon https://example.com -u admin -p password123
 ```
 
 ### Quick Scan (Uses Defaults)
 
 ```bash
-python main.py quick https://example.com -u admin -p password123
+python ashritha.py quick https://example.com -u admin -p password123
 ```
 
 ### Scan Without Exploitation (Recon Only)
 
 ```bash
-python main.py recon https://example.com -u admin -p password123 --no-exploit
+python ashritha.py recon https://example.com -u admin -p password123 --no-exploit
 ```
 
 ### Verbose Mode (For Debugging)
 
 ```bash
-python main.py recon https://example.com -u admin -p password123 --verbose
+python ashritha.py recon https://example.com -u admin -p password123 --verbose
 ```
 
 ### Force Fresh Login (Ignore Cached Session)
 
 ```bash
-python main.py recon https://example.com -u admin -p password123 --force
+python ashritha.py recon https://example.com -u admin -p password123 --force
 ```
 
 ### Generate Report
 
 ```bash
 # Latest report
-python main.py report
+python ashritha.py report
 
 # JSON format
-python main.py report --format json
+python ashritha.py report --format json
 
 # Specific target
-python main.py report example_com
+python ashritha.py report example_com
 ```
 
 ### All Available Options
